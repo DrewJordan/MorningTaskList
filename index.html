@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+
+<head>
+    <script src="node_modules/angular/angular.js"></script>
+    <style>
+        active {
+            color: black;
+        }
+        
+        notActive {
+            color: gray;
+        }
+    </style>
+</head>
+
+<body ng-app="myApp" ng-controller="myCtrl">
+    <p>{{someText}}</p>
+    <h1>Current time is: <span my-current-time="format"></span></h1>
+    <h1>Time left to get ready: <span>{{timeLeft | secondsToDateTime | date:'HH:mm:ss'}}</span></h1>
+    <h2 ng-hide="complete">Time for current task: <span>{{counter | secondsToDateTime | date:'mm:ss'}}</span></h2>
+    <input ng-hide="complete" type="button" style="height:100px; width:200px;font-size:24px;" ng-click="nextStep()" value="Click here"></input>
+    <h1 ng-show="complete">Today's results:</h1>
+    <task ng-repeat="item in todoList"></task>
+</body>
+<script>
+    var myApp = angular.module('myApp',[]);
+    
+    myApp.filter('secondsToDateTime', [function() {
+    return function(seconds) {
+        return new Date(1970, 0, 1).setSeconds(seconds);
+    };
+}])
+    
+    myApp.directive('myCurrentTime', function ($interval, dateFilter) {
+       return function(scope, element, attrs) {
+           var format, stopTime;
+           
+           function updateTime() {
+               element.text(dateFilter(new Date(), format));
+           }
+           
+           scope.$watch(attrs.myCurrentTime, function(value) {
+               format = value;
+               updateTime();
+           });
+           
+           stopTime = $interval(updateTime,1000);
+           
+           element.on('$destroy', function() {
+               $interval.cancel(stopTime);
+           });
+       } 
+    });
+    
+    
+    myApp.directive('task', function () {
+       return {
+          template: '<div ng-show="item.shouldShow">'
+          + '<h1>{{item.title}}</h1><h2 ng-show="item.timeTakenToday">Time taken today: {{item.timeTakenToday | secondsToDateTime | date:"mm:ss"}}</h2>'
+          + '<h2>Previous best time: {{item.previousBest | secondsToDateTime | date:"mm:ss"}}</h2><hr>'
+          + '</div>',
+       }; 
+    });
+    
+    myApp.controller('myCtrl',function($scope, $interval) {
+        $scope.format = 'hh:mm:ss a';
+        $scope.complete = false;
+        $scope.todoList = [
+            { 
+                'time': 120,
+                'title': 'Brush Your Hair!',
+                'timeTakenToday': 0,
+                'previousBest': 0,
+                'shouldShow': false
+            },
+            {
+                'time': 120,
+                'title': 'Brush Your Teeth!',
+                'timeTakenToday': 0,
+                'previousBest': 0,
+                'shouldShow': false
+            },
+            {
+                'time': 60,
+                'title': 'Take Your Medicine!',
+                'timeTakenToday': 0,
+                'previousBest': 0,
+                'shouldShow': false                
+            },
+            {
+                'time': 300,
+                'title': 'Get Dressed!',
+                'timeTakenToday':0,
+                'previousBest': 0,
+                'shouldShow': false
+            }
+        ];
+        $scope.counter = 0;
+        $scope.currentStep = 0;
+        $scope.currentTask = $scope.todoList[0];
+        $scope.currentTask.shouldShow = true;
+        
+        var startOtherTimer = function () {
+              if (angular.isDefined($scope.other)) return;
+              
+              $scope.$on('$destroy', function() {
+                  $scope.stopBusTimer();
+              });
+              $scope.other = $interval(updateBusTimer, 1000);
+        };
+        
+        var currentTime = new Date();
+        var busComesAtTime = new Date();
+        busComesAtTime.setHours(07,45,0);
+        $scope.timeLeft = (busComesAtTime.getTime() - currentTime.getTime()) / 1000;
+        
+        var updateBusTimer = function () {
+            var currentTime = new Date();
+            $scope.timeLeft = (busComesAtTime.getTime() - currentTime.getTime())/1000;
+        }
+        
+        startOtherTimer();
+        
+        var stopBusTimer = function () {
+            $interval.cancel($scope.other);
+            $scope.other = undefined;
+        }
+
+        var stopTimer = function() {
+            $interval.cancel($scope.intt);
+            $scope.intt = undefined;
+            $scope.counter = 0;
+            $scope.currentStep++;
+            
+            if ($scope.currentStep === $scope.todoList.length)
+            {
+                showAll();
+            }
+            else
+            {
+                 $scope.currentTask.shouldShow = false;
+                $scope.currentTask = $scope.todoList[$scope.currentStep];
+                $scope.currentTask.shouldShow = true;
+                startTimer();
+            }
+        }
+        
+        var showAll = function () {
+            for (var i = 0; i < $scope.todoList.length; i++)
+            {
+                $scope.todoList[i].shouldShow = true;
+                $scope.complete = true;
+            }
+        }
+        
+        $scope.nextStep = function () {
+            if ($scope.counter > 0)
+            {
+                // do what? stop the timer, save the time if it's best, and do the next thing
+                $scope.currentTask.timeTakenToday = $scope.counter;
+                stopTimer();
+            }
+            else
+            {
+                startTimer();  
+            }
+            
+            
+        }        
+        
+        
+        
+        var startTimer = function () {
+              if (angular.isDefined($scope.intt)) return;
+              
+              $scope.$on('$destroy', function() {
+                  $scope.stopTimer();
+              });
+              $scope.intt = $interval(doStuff, 1000);
+        };
+        
+        var doStuff = function () {
+          $scope.counter++;  
+        };
+        
+    });
+
+</script>
+
+</html>
